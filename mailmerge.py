@@ -27,6 +27,11 @@ class MailMerge(object):
         self.settings = None
         self._settings_info = None
         self.remove_empty_tables = remove_empty_tables
+        self.image_dict = {}
+        self.images_to_replace = {}
+        for img in filter(lambda x: x.filename.startswith('word/media')
+                                    and x.filename.endswith('.png'),self.zip.filelist):
+            self.image_dict[img.filename.replace('word/media/', '').replace('.png','')] = img
 
         try:
             content_types = etree.parse(self.zip.open('[Content_Types].xml'))
@@ -125,6 +130,11 @@ class MailMerge(object):
                 elif zi == self._settings_info:
                     xml = etree.tostring(self.settings.getroot())
                     output.writestr(zi.filename, xml)
+                elif zi.filename.startswith('word/media') and zi.filename.endswith('.png'):
+                    if zi.filename in self.images_to_replace:
+                        new_image_path = self.images_to_replace[zi.filename]
+                        with open(new_image_path, 'rb') as f:
+                            output.writestr(zi.filename, f.read())
                 else:
                     output.writestr(zi.filename, self.zip.read(zi))
 
@@ -252,6 +262,14 @@ class MailMerge(object):
             else:
                 for part in parts:
                     self.__merge_field(part, field, replacement)
+
+    def replace_image(self, image_number, path_to_image):
+        zinfo = self.image_dict.get(f"image{image_number}")
+        if not zinfo:
+            raise Exception('Image not found in doc')
+
+        self.images_to_replace[zinfo.filename] = path_to_image
+
 
     def __merge_field(self, part, field, text):
         for mf in part.findall('.//MergeField[@name="%s"]' % field):
