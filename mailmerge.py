@@ -132,9 +132,12 @@ class MailMerge(object):
                     output.writestr(zi.filename, xml)
                 elif zi.filename.startswith('word/media') and zi.filename.endswith('.png'):
                     if zi.filename in self.images_to_replace:
-                        new_image_path = self.images_to_replace[zi.filename]
-                        with open(new_image_path, 'rb') as f:
-                            output.writestr(zi.filename, f.read())
+                        new_image_path_or_fileobj = self.images_to_replace[zi.filename]
+                        if hasattr(new_image_path_or_fileobj, 'read'):
+                            output.writestr(zi.filename, new_image_path_or_fileobj.read())
+                        else:
+                            with open(new_image_path_or_fileobj, 'rb') as f:
+                                output.writestr(zi.filename, f.read())
                 else:
                     output.writestr(zi.filename, self.zip.read(zi))
 
@@ -263,12 +266,12 @@ class MailMerge(object):
                 for part in parts:
                     self.__merge_field(part, field, replacement)
 
-    def replace_image(self, image_number, path_to_image):
+    def replace_image(self, image_number, path_to_fileobj):
         zinfo = self.image_dict.get(f"image{image_number}")
         if not zinfo:
             raise Exception('Image not found in doc')
 
-        self.images_to_replace[zinfo.filename] = path_to_image
+        self.images_to_replace[zinfo.filename] = path_to_fileobj
 
 
     def __merge_field(self, part, field, text):
